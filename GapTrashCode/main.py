@@ -1,80 +1,101 @@
-#Carrega as dependencias
+# Importação das bibliotecas necessárias
 import cv2
 import time
+from pyfirmata import Arduino, SERVO
 
-#Cores das classes
+# Configuração da porta do Arduino
+port = 'COM3'  # Porta onde o Arduino está conectado
+board = Arduino(port)
+
+# Configuração do pino do servo motor
+servo_pin = 9  # Pino onde o servo está conectado
+board.digital[servo_pin].mode = SERVO
+
+# Função para mover o servo motor para uma posição específica
+def move_servo(angle):
+    board.digital[servo_pin].write(angle)
+    time.sleep(3)  # Aguarda 3 segundos na posição desejada
+    board.digital[servo_pin].write(0)  # Retorna à posição 0 graus
+
+# Cores das classes
 COLORS = [(0, 255, 255), (255, 255, 0), (0, 255, 0), (255, 0, 0)]
 
-#CARREGA AS CLASSES
+# Carrega as classes
 class_names = []
 with open("coco.names", "r") as f:
     class_names = [cname.strip() for cname in f.readlines()]
     
-#Capitura do vídeo
-#ip = "http://192.168.0.113:8080/cap"
-#cap = cv2.VideoCapture(ip)
+# Captura do vídeo
 cap = cv2.VideoCapture(0)
 
-#CARREGANDO OS PESOS DA REDE NEURAL
+# Carregando os pesos da rede neural
 net = cv2.dnn.readNet("yolov4-tiny.cfg", "yolov4-tiny.weights")
 
-#SETANDO OS PARAMETROS DA REDE NEUAL
+# Setando os parâmetros da rede neural
 model = cv2.dnn_DetectionModel(net)
 model.setInputParams(size=(416, 416), scale=1/255)
 
-#CLASSES A SEREM FILTRADAS
+# Classes a serem filtradas
 target_classes = ["bottle", "spoon", "cup", "book"]
 
-#LENDO OS FRAMES DO VIDEO
+# Lendo os frames do vídeo
 while True:
-    
-    #CAPTURA DO FRAME
+    # Captura do frame
     _, frame = cap.read()
     
-    #COMEÇO DA CONTAGEM DOS MS
+    # Começo da contagem dos ms
     start = time.time()
     
-    #DETECÇÃO
+    # Detecção
     classes, scores, boxes = model.detect(frame, 0.1, 0.2)
     
-    #FIM DA CONTAGEM DOS MS
+    # Fim da contagem dos ms
     end = time.time()
     
-    #PERCORRER TODAS AS DETECÇÕES
-    for (classid, score, box) in zip(classes, scores, boxes):
-        
-        # Verificar se a classe detectada é a filtrada
-        if class_names[classid] not in target_classes:
-            continue
-        
-        #GERANDO UMA COR PARA A CLASSE
-        color = COLORS[int(classid) % len(COLORS)]
-        
-        #PEGANDO O NOME DA CLASSE PELO ID E SEU SCORE DE ACURACIA
-        #label = f"{class_names[classid[0]]} : {score}"
-        label = f"{class_names[classid]} : {score}"
-        
-        #DESENHANDO A BOX DA DETECÇÃO
-        cv2.rectangle(frame, box, color, 2)
-        
-        #ESCREVENDO O NOME DA CLASSE ENCIMA DA BOX DO OBJETO
-        cv2.putText(frame, label, ( box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-        
-    #CALCULANDO O TEMPO QUE LEVOU PRA FAZER A DETECÇÃO
-    fps_label = f"FPS: {round((1.0/(end - start)),2)}"
+    # Inicializa a variável para armazenar a classe detectada
+    detected_class = None
     
-    #ESCREVENDO O FPS NA IMAGEM
+    # Percorrer todas as detecções
+    for (classid, score, box) in zip(classes, scores, boxes):
+        # Verificar se a classe detectada é uma das filtradas
+        if class_names[classid] in target_classes:
+            detected_class = class_names[classid]
+            # Gerando uma cor para a classe
+            color = COLORS[int(classid) % len(COLORS)]
+            # Pegando o nome da classe pelo ID e seu score de acurácia
+            label = f"{class_names[classid]} : {score}"
+            # Desenhando a box da detecção
+            cv2.rectangle(frame, box, color, 2)
+            # Escrevendo o nome da classe em cima da box do objeto
+            cv2.putText(frame, label, (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            break  # Sai do loop após detectar uma classe válida
+    
+    # Calculando o tempo que levou pra fazer a detecção
+    fps_label = f"FPS: {round((1.0/(end - start)), 2)}"
+    
+    # Escrevendo o FPS na imagem
     cv2.putText(frame, fps_label, (0, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 5)
     cv2.putText(frame, fps_label, (0, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
     
-    #MOSTRANDO A IMAGEM
+    # Movendo o servo motor de acordo com a classe detectada
+    if detected_class == "bottle":
+        move_servo(45)
+    elif detected_class == "spoon":
+        move_servo(90)
+    elif detected_class == "cup":
+        move_servo(135)
+    elif detected_class == "book":
+        move_servo(180)
+    else:
+        move_servo(0)
+    
+    # Mostrando a imagem
     cv2.imshow("Detections", frame)
     
-    #ESPERA DA RESPOSTA
+    # Espera da resposta
     if cv2.waitKey(1) == 27:
         break
-    
-#LIBERAÇÃO DA CAMERA E DESTROI TODAS AS JANELAS
+
+# Liberação da câmera e destruição de todas as janelas
 cap.release()
 cv2.destroyAllWindows()
-    

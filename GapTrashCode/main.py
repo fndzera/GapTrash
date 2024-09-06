@@ -1,21 +1,15 @@
 # Importação das bibliotecas necessárias
 import cv2
 import time
-from pyfirmata import Arduino, SERVO
+import serial
 
-# Configuração da porta do Arduino
-port = 'COM3'  # Porta onde o Arduino está conectado
-board = Arduino(port)
-
-# Configuração do pino do servo motor
-servo_pin = 9  # Pino onde o servo está conectado
-board.digital[servo_pin].mode = SERVO
-
-# Função para mover o servo motor para uma posição específica
-def move_servo(angle):
-    board.digital[servo_pin].write(angle)
-    time.sleep(3)  # Aguarda 3 segundos na posição desejada
-    board.digital[servo_pin].write(0)  # Retorna à posição 0 graus
+try:
+#Estabelecendo a conexão com o arduino
+    conectado = serial.Serial("COM4", 115200, timeout=0.5)
+    #print(conectado)
+    print("Conectado com a porta", conectado.portstr)
+except serial.SerialException:
+    print("Porta USB não detectada")
 
 # Cores das classes
 COLORS = [(0, 255, 255), (255, 255, 0), (0, 255, 0), (255, 0, 0)]
@@ -68,6 +62,24 @@ while True:
             cv2.rectangle(frame, box, color, 2)
             # Escrevendo o nome da classe em cima da box do objeto
             cv2.putText(frame, label, (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            
+            # Adicionando o print para exibir o nome da classe detectada no terminal
+            print(f"Objeto detectado: {detected_class}")
+            
+            # Validação para enviar comandos específicos ao Arduino
+            if detected_class == "bottle":
+                conectado.write(b'1')  # Enviar '1' para o Arduino
+                #print("Comando 1 enviado para o Arduino.")
+            elif detected_class == "spoon":
+                conectado.write(b'2')  # Enviar '2' para o Arduino
+                #print("Comando 2 enviado para o Arduino.")
+            elif detected_class == "cup":
+                conectado.write(b'3')  # Enviar '3' para o Arduino
+                #print("Comando 3 enviado para o Arduino.")
+            elif detected_class == "book":
+                conectado.write(b'4')  # Enviar '4' para o Arduino
+                #print("Comando 4 enviado para o Arduino.")
+            
             break  # Sai do loop após detectar uma classe válida
     
     # Calculando o tempo que levou pra fazer a detecção
@@ -76,18 +88,6 @@ while True:
     # Escrevendo o FPS na imagem
     cv2.putText(frame, fps_label, (0, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 5)
     cv2.putText(frame, fps_label, (0, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
-    
-    # Movendo o servo motor de acordo com a classe detectada
-    if detected_class == "bottle":
-        move_servo(45)
-    elif detected_class == "spoon":
-        move_servo(90)
-    elif detected_class == "cup":
-        move_servo(135)
-    elif detected_class == "book":
-        move_servo(180)
-    else:
-        move_servo(0)
     
     # Mostrando a imagem
     cv2.imshow("Detections", frame)

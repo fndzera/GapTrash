@@ -12,8 +12,6 @@ def insert_data(name, percentual, date):
         connection = pymysql.connect(
             host='localhost',       # Host BD
             user='root',      # Usuário BD
-            #password='',    # Senha BD
-            #port='3306', # Porta BD
             database='gaptrash_materials'  # Nome do BD
         )
 

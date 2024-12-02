@@ -1,0 +1,96 @@
+#include <AccelStepper.h>
+#include <Servo.h>
+
+// Pinos e variáveis para o motor de passo
+int sensorIndutivo = 7;   // Pino do sensor indutivo
+int solenoide = 8;        // Pino para o atuador solenoide
+bool ligado = false;      // Variável auxiliar para o sensor
+
+AccelStepper stepper(AccelStepper::DRIVER, 3, 4);  // Pinos do motor de passo
+bool motorRodando = false;  // Flag para verificar se o motor está rodando
+
+// Pinos e variáveis para o servo motor
+Servo meuServo;           // Objeto para controlar o servo motor
+bool servoMovendo = false; // Flag para verificar se o servo está em movimento
+unsigned long tempoInicioMovimento = 0; // Tempo de início do movimento do servo
+const unsigned long duracaoMovimento = 1000; // Duração estimada do movimento do servo
+
+void setup() {
+  // Configuração do motor de passo
+  stepper.setMaxSpeed(1000);
+  stepper.setAcceleration(500);  // Adiciona aceleração para suavizar o movimento
+  stepper.setSpeed(100);         // Define a velocidade inicial do motor de passo
+
+  // Configuração do sensor e do atuador
+  pinMode(sensorIndutivo, INPUT);
+  pinMode(solenoide, OUTPUT);
+  digitalWrite(solenoide, HIGH); // Inicializa a solenoide desativada
+
+  // Configuração do servo motor
+  meuServo.attach(9);            // Pino do servo motor
+  meuServo.write(0);             // Inicializa o servo na posição 0 graus
+  servoMovendo = false;
+
+  Serial.begin(115200);          // Inicializa a comunicação serial
+}
+
+void loop() {
+  // Verifica se o motor de passo está rodando
+  motorRodando = stepper.currentPosition() != 0;
+
+  // Verifica se o sensor detecta algo e chama a função empurraObjeto()
+  if (digitalRead(sensorIndutivo) == HIGH) {
+    empurraObjeto();
+  }
+
+  // Executa o movimento contínuo do motor de passo
+  stepper.runSpeed();
+
+  // Verifica se o servo terminou o movimento
+  if (servoMovendo && (millis() - tempoInicioMovimento >= duracaoMovimento)) {
+    servoMovendo = false;  // Marca o servo como disponível para novo comando
+    Serial.println("Servo pronto para novo comando");
+  }
+
+  // Movimento do servo condicionado ao motor rodando
+  if (motorRodando && !servoMovendo && Serial.available() > 0) {
+    int dado = Serial.read();  // Lê o dado recebido via serial
+
+    // Verifica o comando recebido e move o servo motor
+    // if (dado == '1') {
+    //   meuServo.write(45);  // Move o servo para 45 graus
+    //   iniciarMovimento("Plástico");
+    // }  
+    if (dado == '2') {
+      meuServo.write(90);  // Move o servo para 90 graus
+      iniciarMovimento("Metal");
+    }
+    // } else if (dado == '3') {
+    //   meuServo.write(135);  // Move o servo para 135 graus
+    //   iniciarMovimento("Vidro");
+    // } 
+    else if (dado == '4') {
+      meuServo.write(160);  // Move o servo para 180 graus
+      iniciarMovimento("Papel");
+    } else if (dado == '5') {
+      meuServo.write(0);  // Move o servo para 0 graus
+      iniciarMovimento("Outros");
+    }
+  }
+}
+
+void empurraObjeto() {
+  delay(2000);
+  digitalWrite(solenoide, LOW);  // Ativa o atuador
+  delay(500);
+  digitalWrite(solenoide, HIGH); // Desativa o atuador
+  delay(500);
+}
+
+// Função para iniciar o movimento do servo
+void iniciarMovimento(const char* material) {
+  servoMovendo = true;  // Marca o servo como em movimento
+  tempoInicioMovimento = millis();  // Registra o início do movimento
+  Serial.print("Servo movendo para: ");
+  Serial.println(material);
+}
